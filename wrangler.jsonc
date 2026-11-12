@@ -15,7 +15,7 @@
     {
       "binding": "CLIMA",
       // Troque pelo id gerado em: npx wrangler kv namespace create CLIMA
-      "id": "COLE_AQUI_O_ID_DO_KV"
+      "id": "03aaca91807f4e039d454771006dc50b"
     }
   ],
   // Atualiza o clima a cada 30 min (horário UTC; o intervalo é o que importa).
