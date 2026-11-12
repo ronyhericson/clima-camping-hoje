@@ -154,7 +154,7 @@ export default function RouteMap({ route, onBack, onClear, onEdit }) {
               ))}
             </ol>
             <p className="muted small">
-              Previsão no horário estimado de passagem (mediana de 6 modelos · probabilidade = maior entre as fontes). Rota: OSRM / OpenStreetMap.
+              Previsão no horário estimado de passagem (mediana de 6 modelos · probabilidade = maior entre as fontes). Rota: OSRM · dados © colaboradores do OpenStreetMap.
               Tempo de viagem estimado sem trânsito.
             </p>
           </>

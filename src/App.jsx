@@ -4,6 +4,7 @@ import MunicipioSearch from './MunicipioSearch.jsx'
 import CityMap from './CityMap.jsx'
 import RouteModal from './RouteModal.jsx'
 import RouteMap from './RouteMap.jsx'
+import AboutModal from './AboutModal.jsx'
 import { fetchRoute, checkpoints, weatherAlong } from './routing.js'
 import { CAMPINGS } from './data/campings.js'
 import MUNICIPIOS from './data/sp-municipios.json'
@@ -474,6 +475,12 @@ export default function App() {
   const [campQuery, setCampQuery] = useState('')
   const [cityView, setCityView] = useState(null) // null | 'ruas' | '3d'
   const [routeModal, setRouteModal] = useState(false)
+  // Janela "Sobre, créditos e privacidade" (também abre pelo link direto /#sobre).
+  const [about, setAbout] = useState(() => typeof window !== 'undefined' && window.location.hash === '#sobre')
+  const closeAbout = useCallback(() => {
+    setAbout(false)
+    if (window.location.hash === '#sobre') history.replaceState(null, '', window.location.pathname + window.location.search)
+  }, [])
   const [routeBusy, setRouteBusy] = useState(false)
   const [routeError, setRouteError] = useState(null)
   const [route, setRoute] = useState(null)
@@ -689,7 +696,11 @@ export default function App() {
         <span><i style={{ background: dark ? '#3a4757' : '#d5dce4' }} />Sem camping</span>
         {fetchedAt && <span className="muted small legend-time">Consulta: {fetchedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · atualização automática</span>}
         {aviso && <span className="small warn legend-time" title={aviso}>⚠ Fonte reserva em uso</span>}
+        <button type="button" className="link-btn legend-about" onClick={() => setAbout(true)}>
+          Sobre, créditos e privacidade
+        </button>
       </div>
+      {about && <AboutModal onClose={closeAbout} />}
 
       {status === 'loading' && <div className="toast">Consultando 6 modelos meteorológicos…</div>}
       {error && (
@@ -721,7 +732,10 @@ export default function App() {
                 {results.length ? <Overview results={results} onSelect={select} query={campQuery} setQuery={setCampQuery} /> : <p className="muted">Carregando…</p>}
                 <p className="muted small foot">
                   Fontes: modelos ECMWF, GFS/NOAA, ICON/DWD, UKMO, Météo-France e JMA via Open-Meteo, consolidados por mínimo, máximo, mediana e
-                  concordância. Classificação operacional automática — não substitui alertas oficiais do INMET e da Defesa Civil.
+                  concordância. Classificação operacional automática — não substitui alertas oficiais do INMET e da Defesa Civil.{' '}
+                  <button type="button" className="link-btn small" onClick={() => setAbout(true)}>
+                    Sobre, créditos e privacidade
+                  </button>
                 </p>
               </div>
             </>
