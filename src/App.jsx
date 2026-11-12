@@ -5,6 +5,7 @@ import CityMap from './CityMap.jsx'
 import RouteModal from './RouteModal.jsx'
 import RouteMap from './RouteMap.jsx'
 import AboutModal from './AboutModal.jsx'
+import Forecast5Modal from './Forecast5Modal.jsx'
 import { fetchRoute, checkpoints, weatherAlong } from './routing.js'
 import { CAMPINGS } from './data/campings.js'
 import MUNICIPIOS from './data/sp-municipios.json'
@@ -475,6 +476,8 @@ export default function App() {
   const [campQuery, setCampQuery] = useState('')
   const [cityView, setCityView] = useState(null) // null | 'ruas' | '3d'
   const [routeModal, setRouteModal] = useState(false)
+  const [forecast5, setForecast5] = useState(null) // lugar aberto no modal "Próximos 5 dias"
+  const closeForecast5 = useCallback(() => setForecast5(null), [])
   // Janela "Sobre, créditos e privacidade" (também abre pelo link direto /#sobre).
   const [about, setAbout] = useState(() => typeof window !== 'undefined' && window.location.hash === '#sobre')
   const closeAbout = useCallback(() => {
@@ -630,6 +633,20 @@ export default function App() {
 
       {!cityView && !routeView && (
         <div className="fabs" role="group" aria-label="Ações do mapa">
+          {(selectedCamping || municipio) && (
+            <button
+              className="fab forecast"
+              onClick={() =>
+                setForecast5(
+                  selectedCamping
+                    ? { kind: 'camping', nome: selectedCamping.nome, detalhe: selectedCamping.municipio, lat: selectedCamping.lat, lon: selectedCamping.lon }
+                    : { kind: 'municipio', nome: municipio.nome, detalhe: `Mesorregião ${municipio.meso}`, lat: municipio.c[1], lon: municipio.c[0] },
+                )
+              }
+            >
+              <span aria-hidden="true">📅</span> Próximos 5 dias{selectedCamping ? '' : ` · ${municipio.nome}`}
+            </button>
+          )}
           {municipio && (
             <>
               <button className="fab" onClick={() => setCityView('ruas')}>
@@ -700,6 +717,7 @@ export default function App() {
           Sobre, créditos e privacidade
         </button>
       </div>
+      {forecast5 && <Forecast5Modal place={forecast5} dark={dark} onClose={closeForecast5} onAbout={() => setAbout(true)} />}
       {about && <AboutModal onClose={closeAbout} />}
 
       {status === 'loading' && <div className="toast">Consultando 6 modelos meteorológicos…</div>}
