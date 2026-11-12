@@ -85,8 +85,16 @@ export default function Forecast5Modal({ place, dark, onClose, onAbout }) {
     let alive = true
     setState({ status: 'loading' })
     fetchForecast5(place.lat, place.lon)
-      .then((data) => alive && setState({ status: 'ready', data }))
-      .catch((e) => alive && setState({ status: 'error', error: e.message || String(e) }))
+      .then((data) => {
+        // Detalhes técnicos (fonte reserva, limite da API) ficam só no console.
+        if (data.aviso) console.warn('[Próximos 5 dias]', data.aviso)
+        if (data.stale) console.warn('[Próximos 5 dias]', `${data.stale}; usando a consulta salva de ${new Date(data.at).toLocaleString('pt-BR')}`)
+        if (alive) setState({ status: 'ready', data })
+      })
+      .catch((e) => {
+        console.error('[Próximos 5 dias]', e)
+        if (alive) setState({ status: 'error' })
+      })
     return () => {
       alive = false
     }
@@ -117,16 +125,11 @@ export default function Forecast5Modal({ place, dark, onClose, onAbout }) {
 
         {state.status === 'loading' && <p className="muted f5-wait">Consultando 6 modelos meteorológicos…</p>}
         {state.status === 'error' && (
-          <p className="form-error">Não foi possível consultar a previsão agora: {state.error}. Nenhum dado foi simulado.</p>
+          <p className="form-error">Não foi possível consultar a previsão agora. Tente novamente em alguns minutos.</p>
         )}
 
         {data && (
           <>
-            {(data.aviso || data.stale) && (
-              <p className="small warn">
-                ⚠ {data.aviso ?? `${data.stale}. Mostrando a consulta das ${new Date(data.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}.
-              </p>
-            )}
             <Chart days={data.days} dark={dark} />
 
             <ol className="f5-days">
