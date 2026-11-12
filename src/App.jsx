@@ -16,7 +16,8 @@ import { iconSrc } from './icons.js'
 const REFRESH_MS = 60 * 60 * 1000
 const MANUAL_MIN_MS = 10 * 60 * 1000
 // Clima consolidado pelo Worker (/api/clima). Só vale se for JSON recente e com
-// os mesmos campings deste build; senão o site consulta direto a Open-Meteo.
+// os mesmos campings deste build; senão o site consulta direto a Open-Meteo
+// (e, se essa consulta também falhar, mostra o dado antigo do servidor).
 const SERVER_MAX_AGE = 2 * 60 * 60 * 1000
 async function fetchServerWeather() {
   try {
@@ -25,7 +26,7 @@ async function fetchServerWeather() {
     const d = await r.json()
     const ids = new Set(d.data?.map((x) => x.camping.id))
     const sameList = ids.size === CAMPINGS.length && CAMPINGS.every((c) => ids.has(c.id))
-    return sameList && Date.now() - d.at < SERVER_MAX_AGE ? d : null
+    return sameList ? { ...d, fresh: Date.now() - d.at < SERVER_MAX_AGE } : null
   } catch {
     return null
   }
@@ -97,6 +98,7 @@ function Detail({ w, onClose }) {
       <p className="muted small">
         Atualização dos modelos: {fmtDateTime(w.updatedAt)} (horário de Brasília) · Confiança <b>{w.confidence}</b>
       </p>
+      {w.aviso && <p className="small warn">⚠ {w.aviso}.</p>}
 
       <section className="now">
         <div className="big">{fmt(w.now.temp)}°C</div>
@@ -467,6 +469,7 @@ export default function App() {
       return !c
     })
   const [fetchedAt, setFetchedAt] = useState(null)
+  const [aviso, setAviso] = useState(null)
   const [municipio, setMunicipio] = useState(null)
   const [campQuery, setCampQuery] = useState('')
   const [cityView, setCityView] = useState(null) // null | 'ruas' | '3d'
@@ -510,16 +513,26 @@ export default function App() {
     try {
       // 1º: dados do servidor (Worker na Cloudflare), atualizados a cada 30 min para todos os visitantes.
       const server = await fetchServerWeather()
-      if (server) {
+      if (server?.fresh) {
         setResults(server.data)
         setFetchedAt(new Date(server.at))
+        setAviso(server.aviso ?? null)
         setError(null)
         setStatus('ready')
         return
       }
       // Reserva: consulta direto do navegador (ex.: rodando local com Docker), com cache.
       const maxAge = force ? MANUAL_MIN_MS : REFRESH_MS
-      const r = await cachedFetch(WEATHER_KEY, maxAge, () => fetchWeather(CAMPINGS))
+      let r
+      try {
+        r = await cachedFetch(WEATHER_KEY, maxAge, () => fetchWeather(CAMPINGS))
+      } catch (e) {
+        if (!server) throw e
+        r = { at: server.at, data: server.data, stale: true, error: e }
+      }
+      // Se o salvo no navegador for mais antigo que o do servidor, usa o do servidor.
+      if (r.stale && server && server.at > r.at) r = { ...r, at: server.at, data: server.data }
+      setAviso(null)
       setResults(r.data)
       setFetchedAt(new Date(r.at))
       setError(r.stale ? `${r.error.message}. Mostrando a última consulta, das ${new Date(r.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : null)
@@ -675,6 +688,7 @@ export default function App() {
         ))}
         <span><i style={{ background: dark ? '#3a4757' : '#d5dce4' }} />Sem camping</span>
         {fetchedAt && <span className="muted small legend-time">Consulta: {fetchedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · atualização automática</span>}
+        {aviso && <span className="small warn legend-time" title={aviso}>⚠ Fonte reserva em uso</span>}
       </div>
 
       {status === 'loading' && <div className="toast">Consultando 6 modelos meteorológicos…</div>}

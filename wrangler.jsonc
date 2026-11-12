@@ -20,5 +20,10 @@
   ],
   // Atualiza o clima a cada 30 min (horário UTC; o intervalo é o que importa).
   "triggers": { "crons": ["*/30 * * * *"] },
+  "vars": {
+    // Identificação exigida pela MET Norway (fonte reserva). Coloque o endereço do seu site,
+    // ex.: "ClimaCampingHoje/1.0 https://seusite.workers.dev"
+    "METNO_UA": "ClimaCampingHoje/1.0"
+  },
   "observability": { "enabled": true }
 }

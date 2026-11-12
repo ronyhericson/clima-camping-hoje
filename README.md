@@ -15,6 +15,7 @@ Mapa dinâmico do estado de São Paulo (React + Apache ECharts) com o **tempo ag
 | Uso | Fonte |
 | --- | --- |
 | Previsão e “agora” (6 fontes independentes) | ECMWF, GFS/NOAA, ICON/DWD, UKMO, Météo-France (ARPEGE) e JMA via [Open-Meteo](https://open-meteo.com) (gratuito, sem chave) |
+| Reserva (só quando a Open-Meteo falha) | [MET Norway](https://api.met.no) (base do yr.no; gratuito, sem chave), consultada pelo Worker |
 | Limites das mesorregiões | [API de malhas do IBGE](https://servicodados.ibge.gov.br/api/docs/malhas) (arquivo em `src/data/`) |
 | Conferência manual | Links para Climatempo, Meteored, AccuWeather, Alertas INMET, Defesa Civil SP, radar IPMet, CPTEC/INPE e Windy |
 
@@ -47,7 +48,20 @@ Custo fixo ≈ 2.700 chamadas/dia na Open-Meteo ("tempo agora" a cada 30 min; os
 dentro do plano gratuito, não importa quantos visitantes. Se `/api/clima` não estiver disponível
 (ex.: rodando com Docker), o site consulta a Open-Meteo direto do navegador, com cache local.
 
-Arquivos: `wrangler.jsonc` (configuração) e `worker/index.js` (Worker).
+Arquivos: `wrangler.jsonc` (configuração), `worker/index.js` (Worker) e `worker/metno.js` (fonte reserva).
+
+**Se a Open-Meteo falhar** (ex.: limite diário), o Worker tenta, nesta ordem:
+
+1. **Modelos de hoje já guardados.** Usa os 6 modelos da última consulta do dia, mesmo com mais de 3 h, e pega o "tempo agora" na MET Norway.
+2. **MET Norway sozinha.** Usada quando ainda não há modelos do dia: previsão de uma fonte só, com confiança "baixa".
+3. **Última consulta boa no KV.** Se as duas fontes falharem, `/api/clima` continua servindo o último resultado, com o horário dele.
+
+Quando a reserva está em uso, o site mostra "⚠ Fonte reserva em uso" na legenda e um aviso no laudo do camping.
+O cron volta a tentar a Open-Meteo a cada 30 min.
+
+A MET Norway exige um User-Agent que identifique o app. Ajuste `vars.METNO_UA` no `wrangler.jsonc`
+com o endereço do seu site, por exemplo `"ClimaCampingHoje/1.0 https://seusite.workers.dev"`
+([termos de uso](https://api.met.no/doc/TermsOfService)).
 
 **Primeira vez**
 
@@ -76,6 +90,9 @@ src/
   App.jsx              layout, painel e laudos
   MapView.jsx          mapa ECharts (geo + map + scatter + effectScatter)
   weather.js           coleta multimodelo e consolidação (metodologia do prompt)
+worker/
+  index.js             Worker: site + /api/clima + cron + cache no KV
+  metno.js             fonte reserva MET Norway (convertida para o formato da Open-Meteo)
   icons.js             ícones SVG de tempo
   data/campings.js     campings monitorados (nome, município, mesorregião, coordenadas)
   data/sp-mesorregioes.geo.json   malha IBGE

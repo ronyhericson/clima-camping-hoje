@@ -190,7 +190,9 @@ export async function fetchModelsRaw(campings) {
   return out
 }
 
-export const consolidateAll = (campings, curArr, modArr) => campings.map((c, i) => consolidate(c, curArr[i], modArr[i]))
+// `models` muda só quando o Worker usa a fonte reserva (MET Norway) no lugar dos 6 modelos.
+export const consolidateAll = (campings, curArr, modArr, models = MODELS) =>
+  campings.map((c, i) => consolidate(c, curArr[i], modArr[i], models))
 
 // Consulta completa direto do navegador (usada quando o Worker não está disponível).
 export async function fetchWeather(campings) {
@@ -256,14 +258,14 @@ const PERIODS = [
   { key: 'noite', label: 'Noite', from: 18, to: 24 },
 ]
 
-function consolidate(camping, cur, mod) {
+function consolidate(camping, cur, mod, models = MODELS) {
   const now = cur.current
   const today = mod.daily.time[0]
   const hourStr = now.time.slice(0, 13) + ':00'
   const hIdx = mod.hourly.time.indexOf(hourStr)
   const curHour = Number(now.time.slice(11, 13))
 
-  const perModel = MODELS.map((m) => {
+  const perModel = models.map((m) => {
     const h = (k) => mod.hourly[`${k}_${m.id}`]
     const d = (k) => mod.daily[`${k}_${m.id}`]?.[0] ?? null
     const codeNow = hIdx >= 0 ? h('weather_code')?.[hIdx] ?? null : null

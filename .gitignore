@@ -1,2 +1,44 @@
+# Dependências (reinstaladas com npm install / npm ci)
 node_modules/
+
+# Build do Vite (gerado no deploy com npm run build)
+dist/
+dist-ssr/
+*.local
+
+# Cloudflare Wrangler (cache e dados locais do wrangler dev)
+.wrangler/
+.dev.vars
+.dev.vars.*
+
+# Variáveis de ambiente e segredos
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Cache de ferramentas
+.cache/
+.vite/
+.eslintcache
+coverage/
+
+# Sistema operacional
 .DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editores
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
