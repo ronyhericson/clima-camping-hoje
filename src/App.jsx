@@ -100,7 +100,6 @@ function Detail({ w, onClose }) {
       <p className="muted small">
         Atualização dos modelos: {fmtDateTime(w.updatedAt)} (horário de Brasília) · Confiança <b>{w.confidence}</b>
       </p>
-      {w.aviso && <p className="small warn">⚠ {w.aviso}.</p>}
 
       <section className="now">
         <div className="big">{fmt(w.now.temp)}°C</div>
@@ -454,6 +453,7 @@ export default function App() {
   const [results, setResults] = useState([])
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState(null)
+  const hasData = useRef(false)
   const [selected, setSelected] = useState(null)
   const [panelOpen, setPanelOpen] = useState(() => window.innerWidth >= 900)
   const [collapsed, setCollapsed] = useState(() => {
@@ -471,7 +471,6 @@ export default function App() {
       return !c
     })
   const [fetchedAt, setFetchedAt] = useState(null)
-  const [aviso, setAviso] = useState(null)
   const [municipio, setMunicipio] = useState(null)
   const [campQuery, setCampQuery] = useState('')
   const [cityView, setCityView] = useState(null) // null | 'ruas' | '3d'
@@ -524,9 +523,11 @@ export default function App() {
       // 1º: dados do servidor (Worker na Cloudflare), atualizados a cada 30 min para todos os visitantes.
       const server = await fetchServerWeather()
       if (server?.fresh) {
+        hasData.current = true
         setResults(server.data)
         setFetchedAt(new Date(server.at))
-        setAviso(server.aviso ?? null)
+        // Fonte reserva em uso no Worker: detalhe só no console.
+        if (server.aviso) console.warn('[Clima]', server.aviso)
         setError(null)
         setStatus('ready')
         return
@@ -542,13 +543,17 @@ export default function App() {
       }
       // Se o salvo no navegador for mais antigo que o do servidor, usa o do servidor.
       if (r.stale && server && server.at > r.at) r = { ...r, at: server.at, data: server.data }
-      setAviso(null)
       setResults(r.data)
       setFetchedAt(new Date(r.at))
-      setError(r.stale ? `${r.error.message}. Mostrando a última consulta, das ${new Date(r.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : null)
+      // Detalhes técnicos (limite da API, dado antigo) ficam só no console.
+      if (r.stale) console.warn('[Clima]', `${r.error.message}; mostrando a consulta de ${new Date(r.at).toLocaleString('pt-BR')}`)
+      hasData.current = true
+      setError(null)
       setStatus('ready')
     } catch (e) {
-      setError(e.message || String(e))
+      console.error('[Clima]', e)
+      // Com dados na tela, segue mostrando os anteriores sem alarde; sem nada, avisa.
+      setError(hasData.current ? null : 'sem-dados')
       setStatus((s) => (s === 'refreshing' ? 'ready' : 'error'))
     }
   }, [])
@@ -588,7 +593,7 @@ export default function App() {
 
       <header className="topbar">
         <div className="brand">
-          <span className="logo" aria-hidden="true">⛺</span>
+          <span className="logo" aria-hidden="true"><img src="/favicon.svg" alt="" /></span>
           <div>
             <h1>Clima<span>Camping</span>Hoje</h1>
             <p className="muted small">
@@ -712,7 +717,6 @@ export default function App() {
         ))}
         <span><i style={{ background: dark ? '#3a4757' : '#d5dce4' }} />Sem camping</span>
         {fetchedAt && <span className="muted small legend-time">Consulta: {fetchedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · atualização automática</span>}
-        {aviso && <span className="small warn legend-time" title={aviso}>⚠ Fonte reserva em uso</span>}
         <button type="button" className="link-btn legend-about" onClick={() => setAbout(true)}>
           Sobre, créditos e privacidade
         </button>
@@ -723,7 +727,7 @@ export default function App() {
       {status === 'loading' && <div className="toast">Consultando 6 modelos meteorológicos…</div>}
       {error && (
         <div className="toast error">
-          Não foi possível atualizar agora: {error}. Nenhum dado foi simulado. <button className="link" onClick={() => load(true)}>Tentar de novo</button>
+          Não foi possível carregar o clima agora. Tente novamente em alguns minutos. <button className="link" onClick={() => load(true)}>Tentar de novo</button>
         </div>
       )}
 
