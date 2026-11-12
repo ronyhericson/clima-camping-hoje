@@ -1,0 +1,24 @@
+{
+  // Worker do ClimaCampingHoje: site estático (dist/) + /api/clima com cache no KV.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "climacampinghoje",
+  "main": "worker/index.js",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // /api/* vai sempre para o Worker (nunca para o index.html do site); /__scheduled é para testar o cron no "npm run cf:dev".
+    "run_worker_first": ["/api/*", "/__scheduled"]
+  },
+  "kv_namespaces": [
+    {
+      "binding": "CLIMA",
+      // Troque pelo id gerado em: npx wrangler kv namespace create CLIMA
+      "id": "COLE_AQUI_O_ID_DO_KV"
+    }
+  ],
+  // Atualiza o clima a cada 30 min (horário UTC; o intervalo é o que importa).
+  "triggers": { "crons": ["*/30 * * * *"] },
+  "observability": { "enabled": true }
+}

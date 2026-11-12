@@ -1,0 +1,10 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: clima-camping-hoje:latest
+    container_name: clima-camping-hoje
+    ports:
+      - "${PORT:-8090}:80"
+    restart: unless-stopped
