@@ -85,3 +85,5 @@ nginx.conf             SPA + cache dos assets
 ```
 
 Para adicionar um camping, inclua uma entrada em `src/data/campings.js`, com o nome exato da mesorregião do IBGE.
+
+
