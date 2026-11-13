@@ -2,7 +2,12 @@
 // Carregadas sob demanda na primeira busca e compartilhadas entre o mapa estadual e o mapa da cidade.
 let shapesPromise = null
 export const loadShapes = () =>
-  (shapesPromise ??= import('./data/sp-municipios-fronteiras.json').then((m) => m.default))
+  (shapesPromise ??= import('./data/sp-municipios-fronteiras.json')
+    .then((m) => m.default)
+    .catch((e) => {
+      shapesPromise = null // permite tentar de novo
+      throw e
+    }))
 
 export function bbox(rings) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity

@@ -78,7 +78,10 @@ export default function RouteMap({ route, onBack, onClear, onEdit }) {
           setStatus('ready')
         })
       })
-      .catch(() => !cancelled && setStatus('error'))
+      .catch((e) => {
+        console.error('[Mapa de rotas]', e)
+        if (!cancelled) setStatus('error')
+      })
     return () => {
       cancelled = true
       markers.forEach((m) => m.remove())

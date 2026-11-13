@@ -133,7 +133,10 @@ export default function CityMap({ municipio, mode, onModeChange, onClose }) {
         // Qualquer interação do usuário interrompe o giro automático do 3D.
         ;['mousedown', 'touchstart', 'wheel'].forEach((ev) => map.on(ev, () => stopSpin()))
       })
-      .catch(() => !cancelled && setStatus('error'))
+      .catch((e) => {
+        console.error('[Mapa da cidade]', e)
+        if (!cancelled) setStatus('error')
+      })
     return () => {
       cancelled = true
       stopSpin()
