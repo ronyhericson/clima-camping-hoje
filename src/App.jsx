@@ -12,7 +12,7 @@ import MUNICIPIOS from './data/sp-municipios.json'
 import { fetchWeather, fetchNow, cachedFetch, categorize, RISK, CONDITIONS, describeCode, conclusion, fmt } from './weather.js'
 import { iconSrc } from './icons.js'
 
-// Cada consulta completa custa ~200 chamadas na Open-Meteo (28 campings × 6 modelos),
+// Cada consulta completa custa ~7 chamadas por camping na Open-Meteo (6 modelos + tempo agora),
 // e o plano gratuito permite 10.000 por dia por IP. Por isso: cache no navegador,
 // atualização automática a cada 1 h só com a aba visível, e botão limitado a 1 vez a cada 10 min.
 const REFRESH_MS = 60 * 60 * 1000

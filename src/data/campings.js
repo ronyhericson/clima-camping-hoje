@@ -284,5 +284,35 @@ export const CAMPINGS = [
     "coord": "camping",
     "fonte": "https://www.facebook.com/pages/Camping-Da-Familiailha-Comprida/708283539247732",
     "id": "camping-da-familia"
+  },
+  {
+    "nome": "Sopé Camping & Pousada",
+    "municipio": "Monte Mor",
+    "mesorregiao": "Campinas",
+    "lat": -22.9394,
+    "lon": -47.3594,
+    "coord": "camping",
+    "fonte": "https://www.benditoguia.com.br/empresa/sope-camping-pousada-monte-mor-sp",
+    "id": "sope-camping-e-pousada"
+  },
+  {
+    "nome": "Camping Fazenda das Pedras",
+    "municipio": "Itu",
+    "mesorregiao": "Macro Metropolitana Paulista",
+    "lat": -23.2597,
+    "lon": -47.198,
+    "coord": "camping",
+    "fonte": "https://saopauloparacriancas.com.br/?p=102300",
+    "id": "camping-fazenda-das-pedras"
+  },
+  {
+    "nome": "Camping Bonanza",
+    "municipio": "Pirassununga",
+    "mesorregiao": "Campinas",
+    "lat": -22.0383,
+    "lon": -47.3188,
+    "coord": "camping",
+    "fonte": "https://www.estradanomade.com.br/camping/sp/pirassununga/camping-bonanza",
+    "id": "camping-bonanza"
   }
 ]

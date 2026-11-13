@@ -3,7 +3,7 @@
 // - Serve o site (pasta dist/) como arquivos estáticos.
 // - A cada 30 min (Cron Trigger) consulta a Open-Meteo UMA vez para todos os
 //   visitantes e guarda o resultado consolidado no Workers KV:
-//     · "tempo agora" a cada 30 min (28 chamadas);
+//     · "tempo agora" a cada 30 min (1 chamada por camping);
 //     · os 6 modelos a cada 3 h ou quando vira o dia (168 chamadas).
 //   Total ≈ 2.700 chamadas/dia, fixo, não importa quantos visitantes.
 // - Se a Open-Meteo falhar (ex.: limite diário), usa nesta ordem:
