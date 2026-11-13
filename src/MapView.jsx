@@ -14,9 +14,14 @@ const CITIES = cityCenters.map(([name, lon, lat, pop]) => ({
   value: [lon, lat],
   label: pop >= 500000 ? { fontWeight: 700, fontSize: 11 } : undefined,
 }))
+// Poucos nomes no mapa inteiro (só as maiores cidades) e nenhum colado num
+// camping: o ícone do camping é a informação principal. Com zoom, aparecem mais.
+const CAMP_PTS = CAMPINGS.map((c) => [c.lon, c.lat])
+const nearCamp = ([lon, lat], d) => CAMP_PTS.some(([x, y]) => Math.abs(x - lon) < d && Math.abs(y - lat) < d * 0.8)
 const citiesForZoom = (zoom, exclude) =>
-  CITIES.slice(0, Math.min(CITIES.length, Math.round(35 * zoom * zoom))).filter((c) => c.name !== exclude)
+  CITIES.slice(0, Math.min(CITIES.length, Math.round(12 * zoom * zoom))).filter((c) => c.name !== exclude && !nearCamp(c.value, 0.38 / zoom))
 import { RISK, CONDITIONS, fmt } from './weather.js'
+import { CAMPINGS } from './data/campings.js'
 import { iconUri } from './icons.js'
 import { loadShapes, bbox } from './shapes.js'
 
@@ -30,8 +35,16 @@ const RED = '#d92d20'
 echarts.use([MapChart, ScatterChart, EffectScatterChart, LinesChart, GeoComponent, TooltipComponent, VisualMapComponent, CanvasRenderer])
 echarts.registerMap('SP', spGeo)
 
-const NO_DATA_LIGHT = '#d5dce4'
-const NO_DATA_DARK = '#3a4757'
+// Fundo neutro; a região recebe só um tom suave da cor de risco.
+// A cor forte fica no marcador de cada camping (a informação real).
+const BASE_LIGHT = '#e9eef3'
+const BASE_DARK = '#1f2a36'
+function mix(a, b, t) {
+  const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))
+  const [x, y] = [p(a), p(b)]
+  return `#${x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('')}`
+}
+const textOn = (risk) => (risk === 1 ? '#1b2a3a' : '#fff')
 
 function regionData(results) {
   const worst = {}
@@ -168,15 +181,26 @@ export default function MapView({ results, selectedId, onSelect, dark, municipio
     const zoom = c.getOption()?.geo?.[0]?.zoom ?? 1
     const { singles, groups } = clusterPoints(c, points, radius, selectedId, zoom, borderRef.current?.nome)
     const size = narrow ? 32 : 46
+    const halo = (p, s) => ({ value: p.value, symbolSize: s, symbolOffset: p.symbolOffset, itemStyle: { color: RISK[p.r.risk].color } })
     return [
       { id: 'campings', data: singles },
+      {
+        id: 'campings-risco',
+        data: [
+          ...singles.map((p) => halo(p, p.symbolSize * 0.95)),
+          ...groups.map((g) => halo(g, size * 0.95)),
+        ],
+      },
       {
         id: 'campings-grupo',
         data: groups.map((g) => ({ ...g, symbolSize: size })),
       },
       {
         id: 'campings-qtd',
-        data: groups.map((g) => ({ value: g.value, name: g.name, n: g.members.length, members: g.members, group: true })),
+        data: groups.map((g) => ({
+          value: g.value, name: g.name, n: g.members.length, members: g.members, group: true,
+          itemStyle: { color: RISK[g.r.risk].color }, label: { color: textOn(g.r.risk) },
+        })),
       },
     ]
   }
@@ -243,22 +267,21 @@ export default function MapView({ results, selectedId, onSelect, dark, municipio
           formatter: (p) => {
             if (p.seriesType === 'map') {
               const v = p.value
-              return `<b>${p.name}</b><br/>${v >= 0 ? `Pior laudo entre os campings: <b style="color:${RISK[v].color}">${RISK[v].label}</b>` : 'Sem camping monitorado'}`
+              return `<b>${p.name}</b><br/>${v >= 0 ? `Camping mais crítico: <b style="color:${RISK[v].color}">${RISK[v].label}</b>` : 'Sem camping monitorado'}`
             }
             const members = p.data.members
             if (members) {
               return `<b>${members.length} campings aqui</b><br/>` +
                 members
-                  .map((m) => `${m.r.camping.nome} · ${CONDITIONS[m.r.condition]} · <b>${fmt(m.r.now.temp, 0)}°C</b> · <span style="color:${RISK[m.r.risk].color}">●</span>`)
+                  .map((m) => `<span style="color:${RISK[m.r.risk].color}">●</span> ${m.r.camping.nome} · ${m.r.line ?? CONDITIONS[m.r.condition]}`)
                   .join('<br/>') +
                 `<br/><span style="opacity:.7">Clique para aproximar</span>`
             }
             const r = p.data.r
             if (!r) return ''
             return `<b>${r.camping.nome}</b><br/>${r.camping.municipio}<br/>
-              ${CONDITIONS[r.condition]} · <b>${fmt(r.now.temp)}°C</b><br/>
-              Chuva hoje (mediana): ${fmt(r.rain?.median)} mm<br/>
-              Laudo: <b style="color:${RISK[r.risk].color}">${RISK[r.risk].label}</b><br/>
+              ${r.line ?? CONDITIONS[r.condition]} · <b>${fmt(r.now.temp, 0)}°</b><br/>
+              <b style="color:${RISK[r.risk].color}">${RISK[r.risk].label}</b><br/>
               <span style="opacity:.7">Clique para o laudo completo</span>`
           },
         },
@@ -267,8 +290,8 @@ export default function MapView({ results, selectedId, onSelect, dark, municipio
           seriesIndex: 0,
           show: false,
           pieces: [
-            { value: -1, color: dark ? NO_DATA_DARK : NO_DATA_LIGHT },
-            ...RISK.map((r, i) => ({ value: i, color: r.color })),
+            { value: -1, color: dark ? BASE_DARK : BASE_LIGHT },
+            ...RISK.map((r, i) => ({ value: i, color: mix(dark ? BASE_DARK : BASE_LIGHT, r.color, dark ? 0.24 : 0.22) })),
           ],
         },
         animationDurationUpdate: 800,
@@ -279,8 +302,8 @@ export default function MapView({ results, selectedId, onSelect, dark, municipio
           scaleLimit: { min: 0.8, max: 40 },
           layoutCenter: narrow ? ['50%', '50%'] : ['46%', '52%'],
           layoutSize: narrow ? '96%' : '92%',
-          itemStyle: { borderColor: border, borderWidth: 1.2, opacity: 0.72 },
-          emphasis: { label: { show: false }, itemStyle: { areaColor: null, borderWidth: 2, borderColor: text, opacity: 0.85 } },
+          itemStyle: { borderColor: dark ? '#3b4a5b' : '#c3ced9', borderWidth: 1, opacity: 1 },
+          emphasis: { label: { show: false }, itemStyle: { areaColor: null, borderWidth: 2, borderColor: text, opacity: 1 } },
           select: { disabled: true },
           label: { show: false },
         },
@@ -289,7 +312,7 @@ export default function MapView({ results, selectedId, onSelect, dark, municipio
             type: 'map',
             geoIndex: 0,
             data: regionData(results),
-            itemStyle: { opacity: 0.55 },
+            itemStyle: { opacity: 1 },
           },
           {
             // Nome de cada município no seu centro. hideOverlap esconde os que
@@ -328,6 +351,17 @@ export default function MapView({ results, selectedId, onSelect, dark, municipio
           },
           ...routeSeries(route),
           ...borderSeries(borderRef.current, dark),
+          {
+            // Disco na cor do laudo atrás de cada ícone de camping.
+            id: 'campings-risco',
+            type: 'scatter',
+            coordinateSystem: 'geo',
+            data: [],
+            symbol: 'circle',
+            silent: true,
+            z: 4,
+            itemStyle: { opacity: dark ? 0.55 : 0.4, borderColor: border, borderWidth: 1.5 },
+          },
           {
             id: 'campings',
             type: 'scatter',
@@ -377,7 +411,7 @@ export default function MapView({ results, selectedId, onSelect, dark, municipio
             symbol: 'circle',
             symbolSize: narrow ? 17 : 20,
             symbolOffset: narrow ? [13, -13] : [18, -18],
-            itemStyle: { color: RED, borderColor: '#fff', borderWidth: 2 },
+            itemStyle: { color: RED, borderColor: border, borderWidth: 2 },
             label: {
               show: true,
               position: 'inside',

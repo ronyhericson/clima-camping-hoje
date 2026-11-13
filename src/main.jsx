@@ -21,6 +21,11 @@ window.addEventListener('vite:preloadError', (e) => {
   window.location.reload()
 })
 
+// App instalável (PWA). Só no site publicado; no "npm run dev" atrapalharia o recarregamento.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch((e) => console.warn('[App] Service worker:', e)))
+}
+
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />

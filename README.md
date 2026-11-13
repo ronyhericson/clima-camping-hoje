@@ -87,15 +87,23 @@ Licença: o plano gratuito da Open-Meteo é para uso **não comercial**.
 
 ```
 src/
-  App.jsx              layout, painel e laudos
+  App.jsx              layout, modos Hoje / Fim de semana, link direto (#camping/<id>)
+  CampingReport.jsx    laudo do camping: veredito, agora, linha do tempo, detalhes técnicos
+  CampingList.jsx      lista com filtros (condição, região), favoritos e ranking do fim de semana
+  MunicipioCard.jsx    card do município buscado (agora + próximas horas + campings próximos)
   MapView.jsx          mapa ECharts (geo + map + scatter + effectScatter)
-  weather.js           coleta multimodelo e consolidação (metodologia do prompt)
-worker/
-  index.js             Worker: site + /api/clima + cron + cache no KV
-  metno.js             fonte reserva MET Norway (convertida para o formato da Open-Meteo)
+  weather.js           coleta multimodelo, consolidação, laudo de risco e textos curtos
+  forecast5.js         previsão dos próximos 5 dias (modal)
+  favorites.js         favoritos salvos só no navegador
   icons.js             ícones SVG de tempo
   data/campings.js     campings monitorados (nome, município, mesorregião, coordenadas)
   data/sp-mesorregioes.geo.json   malha IBGE
+worker/
+  index.js             Worker: site + /api/clima + cron + cache no KV
+  metno.js             fonte reserva MET Norway (convertida para o formato da Open-Meteo)
+public/
+  manifest.webmanifest, sw.js, icon-*.png   app instalável (PWA)
+  og.png               imagem da prévia ao compartilhar o link
 Dockerfile             build multi-stage (Node → Nginx)
 docker-compose.yml     serviço frontend
 nginx.conf             SPA + cache dos assets

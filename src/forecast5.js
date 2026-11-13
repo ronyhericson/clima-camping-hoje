@@ -4,7 +4,7 @@
 // e guarda por 1 h. Mesma metodologia do laudo do dia: os 6 modelos, mediana,
 // faixa mín–máx e concordância. Se a Open-Meteo falhar, usa a MET Norway
 // (fonte única, confiança menor).
-import { MODELS, categorize, getJSON, valid, median, stats, cachedFetch } from './weather.js'
+import { MODELS, getJSON, valid, median, stats, cachedFetch, assessRisk, dayCondition as conditionOf } from './weather.js'
 
 const API = 'https://api.open-meteo.com/v1/forecast'
 const METNO = 'https://api.met.no/weatherapi/locationforecast/2.0/complete'
@@ -18,41 +18,6 @@ export const PERIODS5 = [
   { key: 'tarde', label: 'Tarde', from: 12, to: 18 },
   { key: 'noite', label: 'Noite', from: 18, to: 24, night: true },
 ]
-
-// Chuva/trovoada no código do dia não basta: o "pior momento" do dia quase
-// sempre tem chuva. A condição sai do volume (mediana) e do voto das fontes.
-const dryCat = (c) => (c === 'chuva' || c === 'tempestade' ? 'nublado' : c)
-function vote(cats) {
-  const v = {}
-  cats.forEach((c) => c && (v[c] = (v[c] || 0) + 1))
-  const top = Object.entries(v).sort((a, b) => b[1] - a[1])[0]
-  return top ? { cat: top[0], n: top[1] } : { cat: null, n: 0 }
-}
-function conditionOf(codes, mmMedian, storm, n) {
-  if ((mmMedian ?? 0) >= 1) return storm >= Math.max(2, Math.ceil(n / 2)) ? 'tempestade' : 'chuva'
-  return vote(codes.map((c) => dryCat(categorize(c)))).cat ?? 'nublado'
-}
-
-function riskOf(d) {
-  const reasons = []
-  let level = 0
-  const bump = (lv, why) => {
-    if (lv > level) level = lv
-    reasons.push(why)
-  }
-  const g = d.gust?.median ?? 0
-  const r = d.rain?.median ?? 0
-  if (d.storm >= 4 && g >= 70) bump(3, `${d.storm} fontes com trovoada e rajadas de ${Math.round(g)} km/h`)
-  if (g >= 75) bump(3, `Rajadas de ${Math.round(g)} km/h`)
-  if (d.storm >= 3) bump(2, `${d.storm} de ${d.sources} fontes indicam trovoada`)
-  else if (d.storm >= 1) bump(1, `${d.storm} fonte(s) com trovoada isolada`)
-  if (g >= 55) bump(2, `Rajadas de ${Math.round(g)} km/h`)
-  else if (g >= 40) bump(1, `Rajadas de ${Math.round(g)} km/h`)
-  if (r >= 30) bump(2, `~${Math.round(r)} mm de chuva`)
-  else if (r >= 5) bump(1, `~${Math.round(r)} mm de chuva`)
-  if ((d.prob?.median ?? 0) >= 60 && level < 1) bump(1, `Chance de chuva de ${Math.round(d.prob.median)}%`)
-  return { risk: level, reasons: [...new Set(reasons)] }
-}
 
 // Consolida N fontes. `src` = [{ label, days: { 'YYYY-MM-DD': { code, tMax, tMin, mm, prob, gust, storm, periods: [{mm, code, storm}] } } }]
 function consolidate5(src, dates) {
@@ -80,7 +45,7 @@ function consolidate5(src, dates) {
     // Quantas fontes concordam em "vai chover" × "seco".
     const wet = (rain?.median ?? 0) >= 1
     day.agree = per.filter((d) => ((d.mm ?? 0) >= 1) === wet).length
-    return { ...day, ...riskOf(day) }
+    return { ...day, ...assessRisk({ storm, sources: day.sources, gust: day.gust?.median, rain: rain?.median, prob: day.prob?.median }) }
   })
 }
 

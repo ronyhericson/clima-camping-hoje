@@ -22,10 +22,12 @@ const KEY_TRAVA = 'atualizando'
 const MODELS_MAX_AGE = 3 * 60 * 60 * 1000
 const STALE_AFTER = 45 * 60 * 1000 // passou disso, o cron provavelmente falhou
 
-// Muda quando a lista de campings ou as coordenadas mudam: força nova consulta.
-const SIG = [...CAMPINGS.map((c) => `${c.id}@${c.lat},${c.lon}`).join('|')]
-  .reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7)
-  .toString(36)
+// Muda quando a lista de campings, as coordenadas ou o formato dos dados
+// (DATA_VERSION) mudam: força nova consulta no primeiro acesso após o deploy.
+const DATA_VERSION = 2 // 2: hora a hora de hoje + 7 dias (fim de semana)
+const SIG =
+  [...CAMPINGS.map((c) => `${c.id}@${c.lat},${c.lon}`).join('|')].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7).toString(36) +
+  `.v${DATA_VERSION}`
 
 const todayInBrazil = () => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date())
 

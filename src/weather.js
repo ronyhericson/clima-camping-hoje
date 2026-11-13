@@ -184,7 +184,8 @@ export async function fetchModelsRaw(campings) {
       `${API}?${coordsOf(g)}&models=${MODELS.map((m) => m.id).join(',')}` +
       `&hourly=precipitation,precipitation_probability,weather_code,wind_gusts_10m` +
       `&daily=precipitation_sum,precipitation_probability_max,temperature_2m_max,temperature_2m_min,wind_gusts_10m_max,weather_code` +
-      `&forecast_days=2`
+      // Resumo diário de 7 dias (fim de semana); horas limitadas para o Worker processar rápido.
+      `&forecast_days=7&past_hours=24&forecast_hours=48`
     out.push(...asArray(await getJSON(url)))
   }
   return out
@@ -248,6 +249,47 @@ async function fetchNowLive(lat, lon) {
   })
   return { ...cur, hours }
 }
+
+// ---------- laudo de risco (compartilhado: hoje, fim de semana e próximos 5 dias) ----------
+// storm = nº de fontes com trovoada; gust/rain/prob = medianas entre as fontes.
+export function assessRisk({ storm = 0, sources = 0, gust = 0, rain = 0, prob = 0, stormNow = false }) {
+  const reasons = []
+  let level = 0
+  const bump = (lv, why) => {
+    if (lv > level) level = lv
+    reasons.push(why)
+  }
+  gust ??= 0
+  rain ??= 0
+  prob ??= 0
+  if (stormNow) bump(2, 'Trovoada indicada para a hora atual')
+  if (storm >= 4 && gust >= 70) bump(3, `${storm} fontes com trovoada e rajadas de ${Math.round(gust)} km/h`)
+  if (gust >= 75) bump(3, `Rajadas de ${Math.round(gust)} km/h`)
+  if (storm >= 3) bump(2, `${storm} de ${sources} fontes indicam trovoada`)
+  else if (storm >= 1) bump(1, `${storm} fonte(s) com trovoada isolada`)
+  if (gust >= 55) bump(2, `Rajadas de ${Math.round(gust)} km/h`)
+  else if (gust >= 40) bump(1, `Rajadas de ${Math.round(gust)} km/h`)
+  if (rain >= 30) bump(2, `~${Math.round(rain)} mm de chuva`)
+  else if (rain >= 5) bump(1, `~${Math.round(rain)} mm de chuva`)
+  if (prob >= 60 && level < 1) bump(1, `Chance de chuva de ${Math.round(prob)}%`)
+  return { risk: level, reasons: [...new Set(reasons)] }
+}
+
+// Condição de um dia inteiro: o "pior momento" quase sempre tem chuva, então
+// decide pelo volume (mediana) e, se seco, pelo voto das fontes.
+const dryCat = (c) => (c === 'chuva' || c === 'tempestade' ? 'nublado' : c)
+export function dayCondition(codes, mmMedian, storm, n) {
+  if ((mmMedian ?? 0) >= 1) return storm >= Math.max(2, Math.ceil(n / 2)) ? 'tempestade' : 'chuva'
+  const v = {}
+  codes.forEach((c) => {
+    const k = c == null ? null : dryCat(categorize(c))
+    if (k) v[k] = (v[k] || 0) + 1
+  })
+  return Object.entries(v).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'nublado'
+}
+
+const slim = (s) => (s ? { min: s.min, max: s.max, median: s.median } : null)
+const r1 = (v) => (v == null ? null : Math.round(v * 10) / 10)
 
 // ---------- consolidação ----------
 const PERIODS = [
@@ -353,25 +395,53 @@ function consolidate(camping, cur, mod, models = MODELS) {
   })
 
   // ---------- laudo de risco por cores (seção 14) ----------
-  const reasons = []
   const gustMed = gust?.median ?? 0
   const rainMed = rain?.median ?? 0
-  let level = 0
-  const bump = (lv, why) => {
-    if (lv > level) level = lv
-    reasons.push(why)
-  }
-  if (condition === 'tempestade') bump(2, 'Trovoada indicada para a hora atual')
-  if (stormModels >= 4 && gustMed >= 70) bump(3, `${stormModels} fontes com trovoada e rajadas medianas de ${Math.round(gustMed)} km/h`)
-  if (gustMed >= 75) bump(3, `Rajadas medianas de ${Math.round(gustMed)} km/h`)
-  if (stormModels >= 3) bump(2, `${stormModels} de ${avail.length} fontes indicam trovoada no restante do dia`)
-  else if (stormModels >= 1) bump(1, `${stormModels} fonte(s) indica(m) trovoada isolada`)
-  if (gustMed >= 55) bump(2, `Rajadas medianas de ${Math.round(gustMed)} km/h`)
-  else if (gustMed >= 40) bump(1, `Rajadas medianas de ${Math.round(gustMed)} km/h`)
-  if (rainMed >= 30) bump(2, `Acumulado central de ~${Math.round(rainMed)} mm`)
-  else if (rainMed >= 5) bump(1, `Acumulado central de ~${Math.round(rainMed)} mm`)
-  if ((prob?.median ?? 0) >= 60 && level < 1) bump(1, `Probabilidade de chuva elevada (${Math.round(prob.median)}%)`)
+  const { risk: level, reasons } = assessRisk({
+    storm: stormModels, sources: avail.length, gust: gustMed, rain: rainMed, prob: prob?.median, stormNow: condition === 'tempestade',
+  })
   if (!reasons.length) reasons.push('Sem indicação relevante de tempestade, chuva volumosa ou vento perigoso')
+
+  // ---------- hora a hora de hoje (linha do tempo do laudo) ----------
+  const hours = []
+  mod.hourly.time.forEach((t, i) => {
+    if (!t.startsWith(today)) return
+    const col = (k) => valid(avail.map((m) => mod.hourly[`${k}_${m.id}`]?.[i]))
+    const mmv = col('precipitation')
+    const pv = col('precipitation_probability')
+    hours.push({
+      h: Number(t.slice(11, 13)),
+      mm: mmv.length ? r1(median(mmv)) : null,
+      p: pv.length ? Math.max(...pv) : null,
+      s: col('weather_code').filter((c) => c >= 95).length,
+    })
+  })
+
+  // ---------- próximos dias (fim de semana) ----------
+  const days = (mod.daily.time || [])
+    .map((date, di) => {
+      const col = (k) => avail.map((m) => mod.daily[`${k}_${m.id}`]?.[di] ?? null)
+      const rainD = stats(col('precipitation_sum'))
+      const n = Math.max(valid(col('precipitation_sum')).length, valid(col('temperature_2m_max')).length)
+      if (!n) return null
+      const codes = col('weather_code')
+      const storm = codes.filter((c) => (c ?? 0) >= 95).length
+      const probD = stats(col('precipitation_probability_max'))
+      const gustD = stats(col('wind_gusts_10m_max'))
+      return {
+        date,
+        sources: n,
+        rain: slim(rainD),
+        prob: slim(probD),
+        tMax: slim(stats(col('temperature_2m_max'))),
+        tMin: slim(stats(col('temperature_2m_min'))),
+        gust: slim(gustD),
+        storm,
+        condition: dayCondition(codes, rainD?.median, storm, n),
+        ...assessRisk({ storm, sources: n, gust: gustD?.median, rain: rainD?.median, prob: probD?.median }),
+      }
+    })
+    .filter(Boolean)
 
   // ---------- grau de confiança ----------
   let confidence = 'moderada'
@@ -418,6 +488,8 @@ function consolidate(camping, cur, mod, models = MODELS) {
     firstRainEarliest: firstRainHours.length ? Math.min(...firstRainHours) : null,
     firstRainLatest: firstRainHours.length ? Math.max(...firstRainHours) : null,
     periods,
+    hours,
+    days,
     risk: level,
     reasons: [...new Set(reasons)],
     confidence,
@@ -458,3 +530,82 @@ export function conclusion(w) {
 
 export const fmt = (v, d = 1) =>
   v == null ? '—' : Number(v).toLocaleString('pt-BR', { maximumFractionDigits: d, minimumFractionDigits: 0 })
+
+// ---------- leitura rápida (lista, mapa e topo do laudo) ----------
+const curHourOf = (w) => Number(w.updatedAt?.slice(11, 13) ?? new Date().getHours())
+
+// Primeira hora (de agora em diante) com chuva no consenso das fontes.
+function nextWet(w) {
+  const cur = curHourOf(w)
+  if (w.hours?.length) {
+    const wet = w.hours.find((h) => h.h >= cur && ((h.mm ?? 0) >= 0.3 || h.s >= 2))
+    const storm = w.hours.find((h) => h.h >= cur && h.s >= 2)
+    return { hour: wet?.h ?? null, storm: storm?.h ?? null, cur }
+  }
+  // Dado antigo, sem hora a hora: usa a fonte mais antecipada.
+  return { hour: w.firstRainEarliest, storm: w.stormModels >= 2 ? w.firstRainEarliest : null, cur }
+}
+
+// Frase curta: "Chuva a partir das 12h", "Sem chuva no resto do dia"…
+export function outlook(w) {
+  const { hour, storm, cur } = nextWet(w)
+  const raining = (w.now?.precip ?? 0) >= 0.2
+  if (hour == null) return raining ? 'Chuva fraca agora, sem previsão de mais chuva' : 'Sem chuva no resto do dia'
+  const trov = storm != null ? ', com risco de trovoada' : ''
+  if (raining) return `Chovendo agora${trov}`
+  // Modelos indicam chuva nesta hora, mas ela ainda não foi medida no local.
+  if (hour <= cur) return `Chuva a qualquer momento${trov}`
+  return `Chuva a partir das ${hour}h${trov}`
+}
+
+// Topo do laudo: o que esperar (título) e o que fazer (ação).
+export function verdict(w) {
+  const { hour, cur } = nextWet(w)
+  const gust = w.gust?.median ?? 0
+  const dry = w.periods.filter((p) => !p.past && (p.probMax ?? 0) < 30 && (p.mm?.median ?? 0) < 0.3)
+  let action
+  if (w.risk >= 3) action = 'Evite montar acampamento hoje. Com raios, abrigue-se em construção fechada ou carro de teto rígido.'
+  else if (hour != null && hour > cur) action = `Monte a cobertura e confira estacas e tirantes antes das ${hour}h.`
+  else if (hour != null) action = 'Mantenha a cobertura montada e as coisas protegidas da chuva.'
+  else if (gust >= 40) action = `Reforce estacas e tirantes: rajadas de até ${Math.round(gust)} km/h.`
+  else action = 'Bom dia para montar e desmontar a barraca.'
+  const window =
+    hour == null
+      ? null
+      : dry.length
+        ? `Janela mais seca: ${dry.map((p) => p.label.toLowerCase()).join(', ')}.`
+        : 'Sem janela seca confiável no resto do dia.'
+  return { title: outlook(w), action, window }
+}
+
+// ---------- fim de semana ----------
+const dayIdx = (iso) => new Date(`${iso}T12:00:00Z`).getUTCDay()
+const addDays = (iso, n) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * 86400000).toISOString().slice(0, 10)
+
+// Sábado e domingo de referência: os próximos (ou o atual, se já for fim de semana).
+export function weekendDates(today) {
+  const d = dayIdx(today)
+  if (d === 6) return [today, addDays(today, 1)]
+  if (d === 0) return [today]
+  return [addDays(today, 6 - d), addDays(today, 7 - d)]
+}
+
+export const weekdayShort = (iso) => ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][dayIdx(iso)]
+const SEVERITY = ['sol', 'parcial', 'nublado', 'chuva', 'tempestade']
+
+// Resumo de um camping para o fim de semana (pior dia manda no risco e no ícone).
+export function weekendOf(w, dates) {
+  const ds = dates.map((d) => w.days?.find((x) => x.date === d)).filter(Boolean)
+  if (!ds.length) return null
+  const worst = ds.reduce((a, b) => (SEVERITY.indexOf(b.condition) > SEVERITY.indexOf(a.condition) ? b : a))
+  const rain = ds.reduce((t, d) => t + (d.rain?.median ?? 0), 0)
+  return {
+    days: ds,
+    risk: Math.max(...ds.map((d) => d.risk)),
+    condition: worst.condition,
+    rain,
+    tMax: Math.max(...ds.map((d) => d.tMax?.median ?? -99)),
+    tMin: Math.min(...ds.map((d) => d.tMin?.median ?? 99)),
+    text: ds.map((d) => `${weekdayShort(d.date)}: ${(d.rain?.median ?? 0) >= 1 ? `chuva ~${fmt(d.rain.median, 0)} mm` : 'seco'}`).join(' · '),
+  }
+}
