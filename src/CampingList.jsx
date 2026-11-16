@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { RISK, CONDITIONS, fmt } from './weather.js'
 import { iconSrc } from './icons.js'
+import InstagramLink from './Instagram.jsx'
 
 export const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
 // `results` já vem no modo da tela (hoje ou fim de semana): risk, condition e
 // `line` (frase curta) refletem o modo escolhido.
-function Row({ r, onSelect, fav, onToggleFav, rank }) {
+function Row({ r, onSelect, fav, onToggleFav, rank, i = 0 }) {
   return (
-    <li className="row">
+    <li className="row" style={{ '--i': Math.min(i, 14) }}>
       <button className="row-main" onClick={() => onSelect(r.camping.id)}>
         {rank != null && <span className="rank">{rank}º</span>}
         <img src={iconSrc(r.condition, r.now.isDay)} alt={CONDITIONS[r.condition]} width="34" height="34" />
@@ -21,6 +22,7 @@ function Row({ r, onSelect, fav, onToggleFav, rank }) {
         <span className="temp">{fmt(r.now.temp, 0)}°</span>
         <span className="dot" style={{ background: RISK[r.risk].color }} title={RISK[r.risk].label} />
       </button>
+      <InstagramLink camping={r.camping} variant="icon" />
       <button className={`star ${fav ? 'on' : ''}`} onClick={() => onToggleFav(r.camping.id)} aria-pressed={fav} aria-label={fav ? `Remover ${r.camping.nome} dos favoritos` : `Favoritar ${r.camping.nome}`}>
         {fav ? '★' : '☆'}
       </button>
@@ -112,8 +114,8 @@ export default function CampingList({ results, mode, onSelect, query, setQuery, 
         <>
           <div className="list-label">★ Favoritos</div>
           <ul className="list">
-            {favRows.map((r) => (
-              <Row key={r.camping.id} r={r} onSelect={onSelect} fav onToggleFav={onToggleFav} />
+            {favRows.map((r, i) => (
+              <Row key={r.camping.id} i={i} r={r} onSelect={onSelect} fav onToggleFav={onToggleFav} />
             ))}
           </ul>
         </>
@@ -122,7 +124,7 @@ export default function CampingList({ results, mode, onSelect, query, setQuery, 
       <div className="list-label">{weekend ? 'Melhores para o fim de semana' : favRows.length ? 'Todos os campings' : 'Mais atenção primeiro'}</div>
       <ul className="list">
         {sorted.map((r, i) => (
-          <Row key={r.camping.id} r={r} onSelect={onSelect} fav={favs.has(r.camping.id)} onToggleFav={onToggleFav} rank={weekend && i < 3 ? i + 1 : null} />
+          <Row key={r.camping.id} i={i + favRows.length} r={r} onSelect={onSelect} fav={favs.has(r.camping.id)} onToggleFav={onToggleFav} rank={weekend && i < 3 ? i + 1 : null} />
         ))}
       </ul>
     </div>

@@ -720,3 +720,179 @@ details.tech section:first-of-type { margin-top: 8px; }
 .list-filters { flex-wrap: wrap; }
 .list-filters .camp-search { flex: 1 1 100%; margin-bottom: 0; }
 .list-filters .region { flex: 1 1 100%; max-width: none; margin-bottom: 4px; }
+
+/* Rota no celular: painel recolhido mostra só o resumo; barra do topo compacta */
+.route-peek-kv { margin-left: auto; margin-right: 6px; font-weight: 600; }
+.route-peek { margin: 0; line-height: 1.4; }
+.route-sheet .panel-head { margin-bottom: 6px; }
+@media (max-width: 899px) {
+  .route-overlay .city-bar { flex-wrap: nowrap; }
+  .route-overlay .city-title { flex: 1 1 auto; min-width: 0; }
+  .route-overlay .city-title b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .route-overlay .route-actions { width: auto; flex: none; flex-wrap: nowrap; gap: 6px; }
+  .route-overlay .route-actions .btn { flex: none; padding: 8px 10px; }
+  .route-sheet.closed { max-height: 30dvh; overflow-y: auto; }
+}
+
+/* Instagram do camping */
+.ig-link { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); text-decoration: none; font-weight: 600; }
+.ig-link.pill {
+  margin-top: 6px; font-size: 13px; padding: 4px 10px 4px 8px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--bg);
+}
+.ig-link.pill:hover { border-color: var(--accent); }
+.ig-link.icon { flex: none; align-self: center; padding: 6px; border-radius: 8px; color: var(--muted); }
+.ig-link.icon:hover { color: #d62976; background: var(--accent-soft); }
+
+/* Postos no trajeto */
+.route-tabs { display: flex; width: 100%; margin: 0 0 8px; }
+.route-tabs button { flex: 1; font-size: 13px; padding: 6px 10px; }
+.wx-marker.fuel { border-color: #f59e0b; background: #fffbeb; }
+.wx-marker.fuel::after { border-top-color: #f59e0b; }
+.wx-marker .fuel-ic { font-size: 18px; line-height: 1.1; }
+.fuel-ic { width: 30px; text-align: center; font-size: 20px; flex: none; }
+.route-points li.fuel-row { display: flex; align-items: center; border-bottom: 1px solid var(--border); }
+.route-points li.fuel-row button { border-bottom: none; flex: 1; min-width: 0; }
+.route-points li.fuel-row .grow b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fuel-go { flex: none; padding: 8px 10px; text-decoration: none; font-weight: 700; color: var(--accent); border-radius: 8px; }
+.fuel-go:hover { background: var(--accent-soft); }
+
+/* =====================================================================
+   v3 — movimento e acabamento (UX)
+   Regras: animações curtas (≤ 0,5 s), só opacidade/transform, nunca
+   prendem o estado final (backwards) e somem com "reduzir movimento".
+   ===================================================================== */
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(10px); } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(8px) scale(0.92); } }
+@keyframes panel-in { from { opacity: 0; transform: translateX(28px); } }
+@keyframes sheet-in { from { transform: translateY(100%); } }
+@keyframes card-in { from { opacity: 0; transform: translateY(-8px) scale(0.98); } }
+@keyframes modal-in { from { opacity: 0; transform: translateY(14px) scale(0.96); } }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 14px); } }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@keyframes topline { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+@keyframes bar-in { from { opacity: 0; transform: scaleY(0.15); } }
+@keyframes now-ring { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--text) 18%, transparent); } }
+@keyframes flash { 0%, 88%, 100% { opacity: 1; } 91% { opacity: 0.15; } 94% { opacity: 1; } 96% { opacity: 0.3; } }
+@keyframes risk-ring { from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--risk) 55%, transparent); } to { box-shadow: 0 0 0 9px transparent; } }
+@keyframes star-pop { 40% { transform: scale(1.45) rotate(-14deg); } 100% { transform: scale(1); } }
+
+/* Barra fina de progresso no topo (substitui o aviso "Consultando…") */
+.topline { position: absolute; top: 0; left: 0; right: 0; height: 3px; z-index: 60; overflow: hidden; pointer-events: none; opacity: 0; transition: opacity 0.4s; }
+.topline.on { opacity: 1; }
+.topline::before {
+  content: ''; position: absolute; inset: 0; width: 40%;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: topline 1.1s var(--ease-out) infinite;
+}
+
+/* Foco visível para teclado */
+:where(button, a, input, select, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Resposta ao toque e ao passar o mouse */
+.btn, .fab, .chip, .seg button, .icon-btn, .link-btn, .star, .ig-link, .fuel-go, .links a, .route-points button, .list .row-main {
+  transition: transform 0.18s var(--ease-out), background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.25s, padding 0.2s;
+}
+.btn:active:not(:disabled), .fab:active, .chip:active, .seg button:active, .icon-btn:active, .star:active, .links a:active { transform: scale(0.94); }
+.fab:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18); }
+.links a:hover { border-color: var(--accent); background: var(--accent-soft); }
+.seg button.on { box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 35%, transparent); }
+.list .row-main:hover { padding-left: 10px; }
+.star.on { animation: star-pop 0.45s var(--ease-spring); }
+
+/* Painéis entram deslizando */
+.panel { animation: panel-in 0.4s var(--ease-out) backwards; transition: max-height 0.35s var(--ease-out), transform 0.3s var(--ease-out); scroll-behavior: smooth; }
+.muni-card { animation: card-in 0.35s var(--ease-out) backwards; }
+.route-sheet { animation: panel-in 0.4s var(--ease-out) 0.1s backwards; }
+.legend { animation: fade-in 0.5s 0.2s backwards; }
+.toast { animation: toast-in 0.35s var(--ease-spring) backwards; }
+
+/* Botões do mapa aparecem em cascata */
+.fabs > * { animation: pop-in 0.35s var(--ease-spring) backwards; }
+.fabs > *:nth-child(2) { animation-delay: 0.05s; }
+.fabs > *:nth-child(3) { animation-delay: 0.1s; }
+.fabs > *:nth-child(4) { animation-delay: 0.15s; }
+.fabs > *:nth-child(5) { animation-delay: 0.2s; }
+
+/* Lista: itens em cascata; carregamento com "esqueleto" */
+.list .row, .route-points li { animation: rise-in 0.4s var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 28ms); }
+.skeleton li { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--border); animation: fade-in 0.4s backwards; animation-delay: calc(var(--i) * 50ms); }
+.sk-ic { width: 34px; height: 34px; border-radius: 50%; flex: none; }
+.sk-line { display: block; height: 10px; border-radius: 6px; width: 78%; margin: 4px 0; }
+.sk-line.short { width: 46%; }
+.sk-ic, .sk-line {
+  background: linear-gradient(90deg, var(--border) 25%, color-mix(in srgb, var(--border) 35%, var(--surface)) 50%, var(--border) 75%);
+  background-size: 200% 100%; animation: shimmer 1.3s linear infinite;
+}
+
+/* Laudo: blocos sobem em sequência; veredito com destaque */
+.detail > * { animation: rise-in 0.45s var(--ease-out) backwards; }
+.detail > *:nth-child(2) { animation-delay: 0.05s; }
+.detail > *:nth-child(3) { animation-delay: 0.1s; }
+.detail > *:nth-child(4) { animation-delay: 0.15s; }
+.detail > *:nth-child(5) { animation-delay: 0.2s; }
+.detail > *:nth-child(6) { animation-delay: 0.25s; }
+.detail > *:nth-child(n + 7) { animation-delay: 0.3s; }
+.verdict .risk-tag i { animation: risk-ring 1.6s ease-out 0.5s 3; }
+.wk-day { animation: pop-in 0.4s var(--ease-spring) backwards; }
+.wk-day + .wk-day { animation-delay: 0.08s; }
+/* Cabeçalho do laudo fica visível ao rolar */
+.panel.is-detail .detail-head {
+  position: sticky; top: -16px; z-index: 3; background: var(--surface);
+  margin: -16px -16px 10px; padding: 12px 16px 10px; border-bottom: 1px solid var(--border); box-shadow: 0 6px 12px -10px rgba(15, 23, 42, 0.35);
+}
+
+/* Linha do tempo: barras crescem da esquerda para a direita */
+.tl-h { transform-origin: bottom; animation: bar-in 0.45s var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 16ms + 0.2s); }
+.tl-h.now { animation: bar-in 0.45s var(--ease-out) backwards, now-ring 2s ease-in-out 1s infinite; animation-delay: calc(var(--i, 0) * 16ms + 0.2s), 1s; }
+.tl-storm { animation: flash 3s infinite; }
+
+/* Detalhes técnicos abrem suavemente (navegadores recentes) */
+details.tech { interpolate-size: allow-keywords; }
+details.tech::details-content { block-size: 0; overflow: hidden; transition: block-size 0.35s var(--ease-out), content-visibility 0.35s allow-discrete; }
+details.tech[open]::details-content { block-size: auto; }
+details.tech[open] > :not(summary) { animation: fade-in 0.4s backwards; }
+
+/* Janelas (5 dias, sobre, rota) */
+.modal-backdrop { backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.modal { animation: modal-in 0.32s var(--ease-spring) backwards; }
+.f5-days li { animation: rise-in 0.4s var(--ease-out) backwards; }
+.f5-days li:nth-child(2) { animation-delay: 0.05s; }
+.f5-days li:nth-child(3) { animation-delay: 0.1s; }
+.f5-days li:nth-child(4) { animation-delay: 0.15s; }
+.f5-days li:nth-child(5) { animation-delay: 0.2s; }
+.f5-detail { animation: rise-in 0.3s var(--ease-out) backwards; }
+
+/* Marcadores do mapa de rota: só opacidade (o MapLibre posiciona com transform) */
+.wx-marker { animation: fade-in 0.5s backwards; transition: box-shadow 0.2s, filter 0.2s; }
+.wx-marker:hover { filter: brightness(1.05); box-shadow: 0 4px 14px rgba(15, 23, 42, 0.35); }
+
+/* Alvos de toque confortáveis (≥ 40 px) */
+.list .row .star, .ig-link.icon { min-width: 40px; min-height: 40px; display: grid; place-items: center; }
+
+/* ---------- Celular: aba inferior sempre presente ---------- */
+.mini-legend { display: none; }
+@media (max-width: 899px) {
+  .panel { animation-name: sheet-in; }
+  .panel.collapsed { cursor: pointer; }
+  .panel.collapsed .chevron { transform: rotate(180deg); }
+  .panel::after { width: 44px; height: 5px; background: color-mix(in srgb, var(--muted) 45%, transparent); }
+  .mini-legend { display: inline-flex; gap: 4px; margin-right: 2px; }
+  .mini-legend i { width: 9px; height: 9px; border-radius: 50%; }
+  .legend.under-sheet { display: none; }
+  .panel.is-detail .detail-head { top: -10px; margin: -10px -14px 10px; padding: 14px 14px 10px; }
+  .muni-card { animation-name: sheet-in; }
+}
+
+/* Quem prefere menos movimento: sem animações */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important; scroll-behavior: auto !important;
+  }
+}

@@ -31,7 +31,11 @@ async function fetchServerWeather() {
     const d = await r.json()
     const ids = new Set(d.data?.map((x) => x.camping.id))
     const sameList = ids.size === CAMPINGS.length && CAMPINGS.every((c) => ids.has(c.id))
-    return sameList ? { ...d, fresh: Date.now() - d.at < SERVER_MAX_AGE } : null
+    if (!sameList) return null
+    // Dados do camping (nome, Instagram…) sempre do build atual, não da cópia guardada no servidor.
+    const byId = new Map(CAMPINGS.map((c) => [c.id, c]))
+    const data = d.data.map((x) => ({ ...x, camping: byId.get(x.camping.id) }))
+    return { ...d, data, fresh: Date.now() - d.at < SERVER_MAX_AGE }
   } catch {
     return null
   }
@@ -76,6 +80,49 @@ function useAgo(date) {
   return min < 1 ? 'agora' : min < 60 ? `há ${min} min` : `há ${Math.floor(min / 60)} h`
 }
 
+// Gesto de arrastar a aba inferior (só celular). Segue o dedo e decide no fim.
+function useSheetSwipe(ref, handlers, active) {
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    let y0 = null
+    let dy = 0
+    const start = (e) => {
+      if (window.innerWidth >= 900) return
+      // Só a partir do cabeçalho ou com a lista no topo (senão é rolagem normal).
+      if (el.scrollTop > 0 && !e.target.closest('.panel-head, .detail-head')) return
+      y0 = e.touches[0].clientY
+      dy = 0
+    }
+    const move = (e) => {
+      if (y0 == null) return
+      dy = e.touches[0].clientY - y0
+      if (dy > 0) {
+        el.style.transition = 'none'
+        el.style.transform = `translateY(${dy}px)`
+      }
+    }
+    const end = () => {
+      if (y0 == null) return
+      el.style.transition = ''
+      el.style.transform = ''
+      if (dy > 80) handlers.current.down()
+      else if (dy < -40) handlers.current.up()
+      y0 = null
+    }
+    el.addEventListener('touchstart', start, { passive: true })
+    el.addEventListener('touchmove', move, { passive: true })
+    el.addEventListener('touchend', end)
+    el.addEventListener('touchcancel', end)
+    return () => {
+      el.removeEventListener('touchstart', start)
+      el.removeEventListener('touchmove', move)
+      el.removeEventListener('touchend', end)
+      el.removeEventListener('touchcancel', end)
+    }
+  }, [active])
+}
+
 const todayLabel = () => {
   const s = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', timeZone: 'America/Sao_Paulo' })
   return s.charAt(0).toUpperCase() + s.slice(1)
@@ -90,14 +137,24 @@ export default function App() {
   const [selected, setSelected] = useState(hashCamping)
   const [mode, setMode] = useState('hoje') // 'hoje' | 'fds' (fim de semana)
   const [favs, toggleFav] = useFavorites()
-  const [panelOpen, setPanelOpen] = useState(() => window.innerWidth >= 900)
+  // Celular: a lista fica sempre como uma aba recolhida na base da tela (padrão de apps de mapa).
+  const [panelOpen, setPanelOpen] = useState(true)
   const [collapsed, setCollapsed] = useState(() => {
+    if (isNarrow()) return true
     try {
       return localStorage.getItem('ccj:painelRecolhido') === '1'
     } catch {
       return false
     }
   })
+  const setCollapsedTo = (v) =>
+    setCollapsed((c) => {
+      if (c === v) return c
+      try {
+        localStorage.setItem('ccj:painelRecolhido', v ? '1' : '0')
+      } catch {}
+      return v
+    })
   const toggleCollapsed = () =>
     setCollapsed((c) => {
       try {
@@ -231,7 +288,10 @@ export default function App() {
   }, [selected])
 
   // Ao abrir um camping, destaca e enquadra o município dele (mesmo efeito da busca por município).
+  // Celular: ao fechar o laudo, volta para onde estava (lista ou card do município).
+  const returnTo = useRef('list')
   const select = (id) => {
+    returnTo.current = isNarrow() && !panelOpen ? 'muni' : 'list'
     setSelected(id)
     history.replaceState(null, '', `#camping/${id}`)
     setPanelOpen(true)
@@ -243,6 +303,7 @@ export default function App() {
 
   const closeCamping = () => {
     setSelected(null)
+    if (isNarrow() && returnTo.current === 'muni') setPanelOpen(false)
     if (window.location.hash.startsWith('#camping/')) history.replaceState(null, '', window.location.pathname + window.location.search)
   }
 
@@ -257,6 +318,16 @@ export default function App() {
     window.addEventListener('hashchange', open)
     return () => window.removeEventListener('hashchange', open)
   }, [])
+
+  // Arrastar a aba no celular: para cima abre a lista; para baixo recolhe (ou volta do laudo para a lista).
+  // Recolher a lista no celular: com município aberto, mostra o card dele no lugar.
+  const collapseSheet = () => (isNarrow() && municipio ? setPanelOpen(false) : setCollapsedTo(true))
+  const swipeRef = useRef({})
+  swipeRef.current = {
+    down: () => (current ? closeCamping() : collapseSheet()),
+    up: () => !current && setCollapsedTo(false),
+  }
+  useSheetSwipe(panelRef, swipeRef, panelOpen)
 
   const ago = useAgo(fetchedAt)
   const busy = status === 'loading' || status === 'refreshing'
@@ -281,6 +352,10 @@ export default function App() {
           onSelect={(m) => {
             setMunicipio(m)
             if (m && isNarrow()) setPanelOpen(false)
+            if (!m && isNarrow()) {
+              setPanelOpen(true)
+              setCollapsedTo(true)
+            }
           }}
         />
         <div className="actions">
@@ -297,6 +372,15 @@ export default function App() {
           <button
             className={`btn ${panelOpen ? 'active' : ''}`}
             onClick={() => {
+              // Celular: o botão abre/recolhe a aba da lista (ela não some).
+              if (isNarrow()) {
+                if (!panelOpen || current) {
+                  setPanelOpen(true)
+                  if (current) closeCamping()
+                  setCollapsedTo(false)
+                } else setCollapsedTo(!collapsed)
+                return
+              }
               if (!panelOpen && collapsed) toggleCollapsed()
               setPanelOpen((o) => !o)
             }}
@@ -390,11 +474,22 @@ export default function App() {
         <CityMap municipio={municipio} mode={cityView} onModeChange={setCityView} onClose={() => setCityView(null)} />
       )}
 
-      {municipio && !(current && isNarrow()) && (
-        <MunicipioCard m={municipio} results={view} onSelectCamping={select} onClose={() => setMunicipio(null)} />
+      {municipio && !(isNarrow() && panelOpen) && (
+        <MunicipioCard
+          m={municipio}
+          results={view}
+          onSelectCamping={select}
+          onClose={() => {
+            setMunicipio(null)
+            if (isNarrow()) {
+              setPanelOpen(true)
+              setCollapsedTo(true)
+            }
+          }}
+        />
       )}
 
-      <div className="legend">
+      <div className={`legend ${panelOpen ? 'under-sheet' : ''}`}>
         <b className="small legend-title">{weekend ? `Fim de semana (${wkLabel})` : 'Hoje'} · cor da região = camping mais crítico</b>
         {RISK.map((r) => (
           <span key={r.key}><i style={{ background: r.color }} />{r.label}</span>
@@ -406,7 +501,7 @@ export default function App() {
       {forecast5 && <Forecast5Modal place={forecast5} dark={dark} onClose={closeForecast5} onAbout={() => setAbout(true)} />}
       {about && <AboutModal onClose={closeAbout} />}
 
-      {status === 'loading' && <div className="toast">Consultando 6 modelos meteorológicos…</div>}
+      <div className={`topline ${busy ? 'on' : ''}`} role="progressbar" aria-hidden={!busy} aria-label="Atualizando previsões" />
       {error && (
         <div className="toast error">
           Não foi possível carregar o clima agora. Tente novamente em alguns minutos. <button className="link" onClick={() => load(true)}>Tentar de novo</button>
@@ -414,9 +509,10 @@ export default function App() {
       )}
 
       {panelOpen && (
-        <aside ref={panelRef} className={`panel ${collapsed && !current ? 'collapsed' : ''}`}>
+        <aside ref={panelRef} className={`panel ${collapsed && !current ? 'collapsed' : ''} ${current ? 'is-detail' : ''}`}>
           {current ? (
             <CampingReport
+              key={current.camping.id}
               w={current}
               wk={weekend ? wkMap.get(current.camping.id) : null}
               onClose={closeCamping}
@@ -427,22 +523,39 @@ export default function App() {
             <>
               <button
                 className="panel-head"
-                onClick={toggleCollapsed}
+                onClick={() => (collapsed ? setCollapsedTo(false) : collapseSheet())}
                 aria-expanded={!collapsed}
                 aria-controls="painel-campings"
                 title={collapsed ? 'Expandir painel' : 'Recolher painel'}
               >
                 <h2 className="panel-title">{weekend ? `Fim de semana · ${wkLabel}` : 'Campings monitorados'}</h2>
                 {results.length > 0 && <span className="panel-count">{results.length}</span>}
+                <span className="mini-legend show-sm" aria-hidden="true">
+                  {RISK.map((r) => (
+                    <i key={r.key} style={{ background: r.color }} title={r.label} />
+                  ))}
+                </span>
                 <span className={`chevron ${collapsed ? '' : 'open'}`} aria-hidden="true">
                   ▾
                 </span>
               </button>
               <div id="painel-campings" className="panel-body" hidden={collapsed}>
                 {results.length ? (
-                  <CampingList results={view} mode={weekend ? 'fds' : 'hoje'} onSelect={select} query={campQuery} setQuery={setCampQuery} favs={favs} onToggleFav={toggleFav} />
+                  <CampingList
+                    key={weekend ? 'fds' : 'hoje'}
+                    results={view} mode={weekend ? 'fds' : 'hoje'} onSelect={select} query={campQuery} setQuery={setCampQuery} favs={favs} onToggleFav={toggleFav} />
                 ) : (
-                  <p className="muted">Carregando…</p>
+                  <ul className="list skeleton" aria-label="Carregando campings">
+                    {Array.from({ length: 7 }, (_, i) => (
+                      <li key={i} style={{ '--i': i }}>
+                        <i className="sk-ic" />
+                        <span className="grow">
+                          <i className="sk-line" />
+                          <i className="sk-line short" />
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 )}
                 <p className="muted small foot">
                   Mediana de 6 modelos meteorológicos (ECMWF, GFS, ICON, UKMO, Météo-France e JMA). Classificação automática — não substitui os

@@ -11,7 +11,7 @@ export const CAMPINGS = [
     "lon": -46.5832,
     "coord": "camping",
     "fonte": "https://campingmairipora.com.br/",
-    "id": "camping-seguro-pico-do-olho-d-agua"
+    "id": "camping-seguro-pico-do-olho-d-agua", "instagram": "campingseguropicoolhodagua"
   },
   {
     "nome": "Camping Floresta dos Manacás",
@@ -21,7 +21,7 @@ export const CAMPINGS = [
     "lon": -46.0411,
     "coord": "camping",
     "fonte": "https://www.campingflorestadosmanacas.com.br/",
-    "id": "camping-floresta-dos-manacas"
+    "id": "camping-floresta-dos-manacas", "instagram": "florestadosmanacas"
   },
   {
     "nome": "Camping Tabajara",
@@ -31,7 +31,7 @@ export const CAMPINGS = [
     "lon": -46.1326,
     "coord": "camping",
     "fonte": "https://www.campingtabajara.com/",
-    "id": "camping-tabajara"
+    "id": "camping-tabajara", "instagram": "campingtabajara"
   },
   {
     "nome": "Camping Chapéu de Sol",
@@ -41,7 +41,7 @@ export const CAMPINGS = [
     "lon": -47.2789,
     "coord": "camping",
     "fonte": "https://campingchapeudesol.com.br/",
-    "id": "camping-chapeu-de-sol"
+    "id": "camping-chapeu-de-sol", "instagram": "campingchapeudesol"
   },
   {
     "nome": "Vapo Camping EcoPark",
@@ -51,7 +51,7 @@ export const CAMPINGS = [
     "lon": -47.0795,
     "coord": "camping",
     "fonte": "https://www.vapocampingecopark.com.br/",
-    "id": "vapo-camping-ecopark"
+    "id": "vapo-camping-ecopark", "instagram": "vapocamping"
   },
   {
     "nome": "Sítio Serra das Paineiras (Serra do Japi)",
@@ -61,7 +61,7 @@ export const CAMPINGS = [
     "lon": -46.9412,
     "coord": "camping",
     "fonte": "https://www.serradaspaineiras.com.br",
-    "id": "sitio-serra-das-paineiras-serra-do-japi"
+    "id": "sitio-serra-das-paineiras-serra-do-japi", "instagram": "serradaspaineiras"
   },
   {
     "nome": "Camping Valle das Águas",
@@ -71,7 +71,7 @@ export const CAMPINGS = [
     "lon": -46.5456,
     "coord": "camping",
     "fonte": "https://www.benditoguia.com.br/empresa/camping-valle-das-aguas-socorro",
-    "id": "camping-valle-das-aguas"
+    "id": "camping-valle-das-aguas", "instagram": "campingvalledasaguas"
   },
   {
     "nome": "Camping Park dos Lagos",
@@ -91,7 +91,7 @@ export const CAMPINGS = [
     "lon": -47.0533,
     "coord": "camping",
     "fonte": "https://www.benditoguia.com.br/empresa/camping-macuco-valinhos",
-    "id": "camping-macuco"
+    "id": "camping-macuco", "instagram": "camping_macuco"
   },
   {
     "nome": "Camping e Pousada Paiol",
@@ -101,7 +101,7 @@ export const CAMPINGS = [
     "lon": -46.6976,
     "coord": "camping",
     "fonte": "https://linktr.ee/campingepousadapaiol",
-    "id": "camping-e-pousada-paiol"
+    "id": "camping-e-pousada-paiol", "instagram": "campingepousadapaiol"
   },
   {
     "nome": "Eco Park Camping & Pousada",
@@ -112,7 +112,7 @@ export const CAMPINGS = [
     "coord": "bairro",
     "local": "Estrada Vicinal Henrique Furlan, 59",
     "fonte": "https://macamp.com.br/guia/guia/campings/brasil/sao-paulo/sao-pedro/camping-eco-park-sao-pedro/",
-    "id": "eco-park-camping-pousada"
+    "id": "eco-park-camping-pousada", "instagram": "eco_park_camping_sao_pedro_sp"
   },
   {
     "nome": "Cachoeira Saltão – Camping",
@@ -122,7 +122,7 @@ export const CAMPINGS = [
     "lon": -47.8857,
     "coord": "camping",
     "fonte": "https://www.saltao.com.br/",
-    "id": "cachoeira-saltao-camping"
+    "id": "cachoeira-saltao-camping", "instagram": "cachoeiradosaltao"
   },
   {
     "nome": "Praia Municipal de Rifaina (camping)",
@@ -202,7 +202,7 @@ export const CAMPINGS = [
     "lon": -49.2321,
     "coord": "camping",
     "fonte": "https://quantocustaviajar.com/blog/?p=41281",
-    "id": "pedrinha-represa-jurumirim-camping"
+    "id": "pedrinha-represa-jurumirim-camping", "instagram": "camping_pedrinha"
   },
   {
     "nome": "PETAR – Núcleo Caboclos (camping)",
@@ -222,7 +222,7 @@ export const CAMPINGS = [
     "lon": -45.3482,
     "coord": "camping",
     "fonte": "https://www.campingpedradosino.com.br/",
-    "id": "camping-pedra-do-sino"
+    "id": "camping-pedra-do-sino", "instagram": "campingpedradosino"
   },
   {
     "nome": "Rancho Pica Pau",
@@ -233,7 +233,7 @@ export const CAMPINGS = [
     "coord": "bairro",
     "local": "Estrada Chico Sítio, 850 — Casanga",
     "fonte": "https://www.expedia.com/Ubatuba-Hotels-Rancho-Pica-Pau.h121672080.Hotel-Information",
-    "id": "rancho-pica-pau"
+    "id": "rancho-pica-pau", "instagram": "ranchopicapauubatuba"
   },
   {
     "nome": "Camping Sununga",
@@ -253,7 +253,7 @@ export const CAMPINGS = [
     "lon": -45.0098,
     "coord": "camping",
     "fonte": "https://www.ioverlander.com/places/54992-padang-surf-camping",
-    "id": "padang-surf-camping-itamambuca"
+    "id": "padang-surf-camping-itamambuca", "instagram": "padangsurfcamping"
   },
   {
     "nome": "Pousada Camping Camburi",
@@ -273,7 +273,7 @@ export const CAMPINGS = [
     "lon": -47.9958,
     "coord": "camping",
     "fonte": "https://quantocustaviajar.com/blog/ilha-do-cardoso-sao-paulo/",
-    "id": "ilha-do-cardoso-camping-no-maruja"
+    "id": "ilha-do-cardoso-camping-no-maruja", "instagram": "ailhadocardoso"
   },
   {
     "nome": "Camping da Família",
@@ -303,7 +303,7 @@ export const CAMPINGS = [
     "lon": -47.198,
     "coord": "camping",
     "fonte": "https://saopauloparacriancas.com.br/?p=102300",
-    "id": "camping-fazenda-das-pedras"
+    "id": "camping-fazenda-das-pedras", "instagram": "fazendadaspedrasitu"
   },
   {
     "nome": "Camping Bonanza",

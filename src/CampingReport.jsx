@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { RISK, CONDITIONS, describeCode, conclusion, verdict, weekdayShort, fmt } from './weather.js'
 import { iconSrc } from './icons.js'
+import InstagramLink from './Instagram.jsx'
 
 // Laudo de um camping em 3 camadas:
 //  1. veredito (o que esperar e o que fazer);
@@ -55,7 +56,7 @@ export function DayTimeline({ w }) {
             (x?.p != null ? ` · chance ${x.p}%` : '') +
             (x?.s >= 2 ? ` · trovoada em ${x.s} fontes` : '')
           return (
-            <li key={h} className={`tl-h ${lv} ${h < cur ? 'past' : ''} ${h === cur ? 'now' : ''}`} title={title}>
+            <li key={h} className={`tl-h ${lv} ${h < cur ? 'past' : ''} ${h === cur ? 'now' : ''}`} title={title} style={{ '--i': h }}>
               {x?.s >= 2 && <span className="tl-storm" aria-hidden="true">⚡</span>}
             </li>
           )
@@ -144,6 +145,7 @@ export default function CampingReport({ w, wk, onClose, fav, onToggleFav }) {
           <p className="muted small">
             {c.municipio} · {c.mesorregiao}
           </p>
+          <InstagramLink camping={c} />
         </div>
         <div className="head-actions">
           <button className={`icon-btn star ${fav ? 'on' : ''}`} onClick={onToggleFav} aria-pressed={fav} aria-label={fav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'} title="Favorito">

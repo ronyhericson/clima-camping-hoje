@@ -110,5 +110,6 @@ nginx.conf             SPA + cache dos assets
 ```
 
 Para adicionar um camping, inclua uma entrada em `src/data/campings.js`, com o nome exato da mesorregião do IBGE.
+O campo opcional `"instagram"` (perfil sem @) mostra o link do perfil oficial no laudo e na lista; use só perfis confirmados pelo site oficial do camping ou com nome e cidade conferidos.
 
 

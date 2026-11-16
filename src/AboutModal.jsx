@@ -68,7 +68,8 @@ export default function AboutModal({ onClose }) {
               <li>
                 Mapas, ruas, rotas e busca de endereços: dados ©{' '}
                 <A href="https://www.openstreetmap.org/copyright">colaboradores do OpenStreetMap</A> (ODbL), com mapas da{' '}
-                <A href="https://openfreemap.org/">OpenFreeMap</A>, rotas do <A href="https://project-osrm.org/">OSRM</A> e busca do{' '}
+                <A href="https://openfreemap.org/">OpenFreeMap</A>, rotas do <A href="https://project-osrm.org/">OSRM</A>, postos no trajeto pelo{' '}
+                <A href="https://overpass-api.de/">Overpass API</A> e busca do{' '}
                 <A href="https://photon.komoot.io/">Photon</A>.
               </li>
               <li>

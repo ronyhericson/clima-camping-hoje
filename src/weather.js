@@ -567,6 +567,7 @@ export function verdict(w) {
   if (w.risk >= 3) action = 'Evite montar acampamento hoje. Com raios, abrigue-se em construção fechada ou carro de teto rígido.'
   else if (hour != null && hour > cur) action = `Monte a cobertura e confira estacas e tirantes antes das ${hour}h.`
   else if (hour != null) action = 'Mantenha a cobertura montada e as coisas protegidas da chuva.'
+  else if ((w.now?.precip ?? 0) >= 0.2) action = 'Espere a chuva fraca passar para montar ou desmontar a barraca.'
   else if (gust >= 40) action = `Reforce estacas e tirantes: rajadas de até ${Math.round(gust)} km/h.`
   else action = 'Bom dia para montar e desmontar a barraca.'
   const window =

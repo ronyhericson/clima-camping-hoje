@@ -165,3 +165,102 @@ export function routeSummary(points) {
   if (storm.length) s += ` Risco de trovoada perto do km ${Math.round(storm[0].km)} — reduza a velocidade e evite parar em áreas abertas.`
   return s
 }
+
+// ---------- postos de combustível no trajeto (OpenStreetMap / Overpass) ----------
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']
+const FUEL_RADIUS = 500 // metros da rota
+
+// Distância acumulada (m) em cada vértice da rota.
+function cumulative(coords) {
+  const cum = [0]
+  for (let i = 1; i < coords.length; i++) cum.push(cum[i - 1] + haversine(coords[i - 1], coords[i]))
+  return cum
+}
+
+// Rota reduzida a um ponto a cada ~step metros (a consulta do Overpass fica curta).
+function sample(coords, cum, step) {
+  const out = [coords[0]]
+  let next = step
+  for (let i = 1; i < coords.length; i++) {
+    if (cum[i] >= next) {
+      out.push(coords[i])
+      next = cum[i] + step
+    }
+  }
+  out.push(coords[coords.length - 1])
+  return out
+}
+
+// Servidores públicos do Overpass às vezes ficam lotados: pergunta aos dois ao
+// mesmo tempo e usa o primeiro que responder (uma consulta só por rota).
+async function overpass(query) {
+  const ctl = new AbortController()
+  const timer = setTimeout(() => ctl.abort(), 25000)
+  try {
+    return await Promise.any(
+      OVERPASS.map(async (url) => {
+        const r = await fetch(url, { method: 'POST', body: new URLSearchParams({ data: query }), signal: ctl.signal })
+        if (!r.ok || !r.headers.get('content-type')?.includes('json')) throw new Error(`Overpass respondeu ${r.status}`)
+        return r.json()
+      }),
+    )
+  } catch (e) {
+    throw new Error(`Busca de postos indisponível (${e.errors?.map((x) => x.message).join('; ') || e.message})`)
+  } finally {
+    clearTimeout(timer)
+    ctl.abort() // cancela o servidor que ficou para trás
+  }
+}
+
+const fuelName = (t) => t.name || t.brand || t.operator || 'Posto de combustível'
+
+// Postos a até 500 m do trajeto, com km, distância da rota e horário estimado de passagem.
+export async function fuelAlong(route, departure) {
+  const { coords, duration } = route
+  const cum = cumulative(coords)
+  const total = cum[cum.length - 1] || 1
+  // ~1 ponto a cada 1,5 km (máx. ~250 pontos) mantém a busca precisa e leve.
+  const step = Math.max(1500, total / 250)
+  const line = sample(coords, cum, step)
+    .map(([lon, lat]) => `${lat.toFixed(5)},${lon.toFixed(5)}`)
+    .join(',')
+  const elements = (await overpass(`[out:json][timeout:25];nwr["amenity"="fuel"](around:${FUEL_RADIUS},${line});out center tags;`)).elements || []
+
+  const stations = []
+  for (const el of elements) {
+    const lat = el.lat ?? el.center?.lat
+    const lon = el.lon ?? el.center?.lon
+    if (lat == null) continue
+    const coord = [lon, lat]
+    // Vértice mais próximo da rota.
+    let j = 0
+    let best = Infinity
+    for (let i = 0; i < coords.length; i++) {
+      const dx = (coords[i][0] - lon) * Math.cos(toRad(lat))
+      const dy = coords[i][1] - lat
+      const dd = dx * dx + dy * dy
+      if (dd < best) {
+        best = dd
+        j = i
+      }
+    }
+    const off = haversine(coord, coords[j])
+    if (off > FUEL_RADIUS + 150) continue
+    const t = el.tags || {}
+    stations.push({
+      id: `${el.type}/${el.id}`,
+      coord,
+      km: cum[j] / 1000,
+      off,
+      eta: new Date(departure.getTime() + (cum[j] / total) * duration * 1000),
+      name: fuelName(t),
+      brand: t.brand && t.brand !== t.name ? t.brand : null,
+      h24: t.opening_hours === '24/7',
+      hours: t.opening_hours && t.opening_hours !== '24/7' ? t.opening_hours : null,
+    })
+  }
+  // Mesmo posto mapeado duas vezes (ponto + área): fica um.
+  stations.sort((a, b) => a.km - b.km)
+  const list = stations.filter((s, i) => !stations.slice(0, i).some((o) => haversine(o.coord, s.coord) < 80))
+  return { stations: list }
+}
